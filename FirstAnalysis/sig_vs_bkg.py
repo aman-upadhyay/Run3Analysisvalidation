@@ -2,42 +2,37 @@
 
 """
 Produce plots of signal vs background distributions.
-
 Takes a signal file and background file and any number of variables.
 Makes and saves signal vs background plots for each decay channel and each variable.
 Creates one plot per pT bin and saves them all to one canvas per variable
 or optionally in separate canvases (singlepad = True).
 User can also manually set the options to normalise or rebin the histograms,
 defaults are True and 1 (no rebin), respectively.
-
 Input: file with histograms produced by o2-analysis-hf-task-... in MC mode
-
 Usage: python3 sig_vs_bkg.py
-
 Parameters:
 - path_file_sig: path to file with signal distributions
 - path_file_bkg: path to file with background distributions
 - variables: list of variable strings
 - decays: list of decay channel strings (appearing in hf-task-{decay}...)
-
 Contributors:
     Rik Spijkers <r.spijkers@students.uu.nl>
     Luigi Dello Stritto <luigi.dello.stritto@cern.ch>
     Vít Kučera <vit.kucera@cern.ch>
+    Aman Upadhyay <aman.upadhyay@cern.ch>
 """
-
+import math
 import os
 import sys
 from math import ceil, sqrt
 
-from ROOT import TCanvas, TFile, TLegend, gROOT, gStyle, kBlue, kRed
+from ROOT import TCanvas, TFile, TLegend, gROOT, gStyle, kBlue, kRed, TH1D, TGaxis
 
 
 def create_canvas(n_plots, name, size_x=1500, size_y=800):
     """
     Creates a canvas and automatically divides it in a nxn grid of subpads,
     where n is the lowest value for which all the plots can be drawn
-
     Returns the canvas
     """
     canvas = TCanvas(name, "canvas title")
@@ -75,19 +70,53 @@ def set_histogram(his, y_min, y_max, margin_low, margin_high, logscale):
         his.GetYaxis().SetRangeUser(
             y_min / pow(y_range, margin_low / k), y_max * pow(y_range, margin_high / k)
         )
+        low = y_min / pow(y_range, margin_low / k)
+        high = y_max * pow(y_range, margin_high / k)
     else:
         logscale = False
         y_range = y_max - y_min
         his.GetYaxis().SetRangeUser(
             y_min - margin_low / k * y_range, y_max + margin_high / k * y_range
         )
-    return logscale
+        low = y_min - margin_low / k * y_range
+        high = y_max + margin_high / k * y_range
+    return logscale, low , high
+    
+#takes 1D sig and bk histogram and returns 1D significance histogram
+def significance(sig, bkg, pT,var):
+    bins = sig.GetNbinsX()
+    xlow = sig.GetXaxis().GetXmin()
+    xhigh = sig.GetXaxis().GetXmax()
+    signif = TH1D("sig{}_{}".format(pT,var), "", bins, xlow, xhigh)
+    sig_mean = sig.GetMean()
+    bkg_mean = bkg.GetMean()
+    if sig_mean>bkg_mean:
+        for e in range(bins+1):
+            s = sig.Integral(e,bins+1)
+            b = bkg.Integral(e,bins+1)
+            den = math.sqrt(s+b)
+            if den!=0:
+                sign = s/den
+                signif.SetBinContent(e,sign)
+            else:
+                signif.SetBinContent(e,0)
+    else:
+        for e in range(bins+1):
+            s = sig.Integral(0,e)
+            b = bkg.Integral(0,e)
+            den = math.sqrt(s+b)
+            if den!=0:
+                sign = s/den
+                signif.SetBinContent(e,sign)
+            else:
+                signif.SetBinContent(e,0)
+    return signif
+
 
 
 def main():
     """
     Main plotting function
-
     Loops over decays, variables and pT bins.
     """
     file_sig = TFile(path_file_sig)
@@ -136,6 +165,7 @@ def main():
             if not singlepad:
                 canvas_all = create_canvas(n_bins_pt, f"{var}_canvas")
             list_leg = []  # one legend for each pT bin
+            axis = []
 
             for i in range(n_bins_pt):
                 bin_pt = i + 1
@@ -168,6 +198,9 @@ def main():
                 n_entries_bkg = h_bkg_px.GetEntries()
                 list_leg[i].AddEntry(h_sig_px, f"Sig. ({int(n_entries_sig)})", "FL")
                 list_leg[i].AddEntry(h_bkg_px, f"Bkg. ({int(n_entries_bkg)})", "FL")
+                h_significance = significance(h_sig_px, h_bkg_px, i, var)
+                n_entries_sign = h_significance.GetEntries()
+                list_leg[i].AddEntry(h_significance, f"Significance. ({int(n_entries_sign)})", "FL")
                 # normalise histograms
                 if normalise:
                     if n_entries_sig > 0 and n_entries_bkg > 0:
@@ -185,8 +218,8 @@ def main():
                     h_sig_px.GetBinContent(h_sig_px.GetMaximumBin()),
                 )
                 y_min = min(h_bkg_px.GetMinimum(0), h_sig_px.GetMinimum(0))
-                logscale = set_histogram(
-                    h_bkg_px, y_min, y_max, margin_low, margin_high, True
+                logscale, low_y, high_y = set_histogram(
+                    h_bkg_px, y_min, y_max, margin_low, margin_high, False
                 )
                 if logscale:
                     pad.SetLogy()
@@ -204,6 +237,30 @@ def main():
                 h_sig_px.SetFillColorAlpha(kRed + 1, 0.35)
                 h_sig_px.SetFillStyle(3354)
                 h_sig_px.DrawCopy("hist same")
+
+                #scale significance to the pad coordinates
+                rightmax = 1.2*h_significance.GetBinContent(h_significance.GetMaximumBin())
+                if rightmax != 0:
+                    scale = high_y/rightmax
+                    h_significance.Scale(scale)
+                h_significance.SetLineColor(3)
+                h_significance.SetLineWidth(1)
+                h_significance.SetLineStyle(5)
+                h_significance.DrawCopy("hist same")
+
+
+                
+                pad.Update()
+                axis.append(TGaxis(pad.GetUxmax(), pad.GetUymin(), pad.GetUxmax(), pad.GetUymax(), 0, rightmax, 510, "+L"))
+
+                axis[i].SetLineColor(3)
+                axis[i].SetLabelColor(3)
+                axis[i].SetTitleColor(3)
+                axis[i].SetTitle("Significance")
+                axis[i].Draw("same")
+
+                pad.Update()
+                
 
                 # lat.DrawLatex(0.17,0.88,"ALICE 3 Study, layout v1")
                 # lat3.DrawLatex(0.17,0.83,"PYTHIA 8.2, #sqrt{#it{s}} = 14 TeV")
@@ -270,7 +327,7 @@ rebin = 1
 path_file_sig = "../codeHF/AnalysisResults_O2.root"
 path_file_bkg = "../codeHF/AnalysisResults_O2.root"
 
-# variables = ["d0Prong0", "d0Prong1", "d0Prong2", "PtProng0", "PtProng1", "PtProng2", "CPA", "Eta", "Declength"]
+# variables = ["d0Prong0", "d0Prong1", "d0Prong2", "PtProng0", "PtProng1", "PtProng2", "CPA", "Eta", "Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon"]
 variables = ["CPA", "Pt", "Eta"]
 
 decays = ["d0"]
