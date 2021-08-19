@@ -75,22 +75,69 @@ def set_histogram(his, y_min, y_max, margin_low, margin_high, logscale):
     else:
         logscale = False
         y_range = y_max - y_min
-        his.GetYaxis().SetRangeUser(
-            y_min - margin_low / k * y_range, y_max + margin_high / k * y_range
-        )
+        if normalise:
+            his.GetYaxis().SetRangeUser(y_min - margin_low / k * y_range, y_max + margin_high / k * y_range)
+        else:
+            his.GetYaxis().SetRangeUser(y_min, y_max*1.1+margin_high)
         low = y_min - margin_low / k * y_range
         high = y_max + margin_high / k * y_range
     return logscale, low , high
     
 #takes 1D sig and bk histogram and returns 1D significance histogram
-def significance(sig, bkg, pT,var):
+def significance(sig, bkg, pT, var):
     bins = sig.GetNbinsX()
     xlow = sig.GetXaxis().GetXmin()
     xhigh = sig.GetXaxis().GetXmax()
     signif = TH1D("sig{}_{}".format(pT,var), "", bins, xlow, xhigh)
     sig_mean = sig.GetMean()
     bkg_mean = bkg.GetMean()
-    if sig_mean>bkg_mean:
+    if var=="CPA2D" or var=="CPAXY" or var=="DeclengthXY" or var=="Declength" or var=="DeclengthNorm" or var=="pionpT" or var=="kaonpT":    #greater than cut
+        for e in range(bins+1):
+            s = sig.Integral(e,bins+1)
+            b = bkg.Integral(e,bins+1)
+            den = math.sqrt(s+b)
+            if den!=0:
+                sign = s/den
+                signif.SetBinContent(e,sign)
+            else:
+                signif.SetBinContent(e,0)
+    elif var=="mass2D" or var=="IPP":                           #less than cut
+        for e in range(bins+1):
+            s = sig.Integral(0,e)
+            b = bkg.Integral(0,e)
+            den = math.sqrt(s+b)
+            if den!=0:
+                sign = s/den
+                signif.SetBinContent(e,sign)
+            else:
+                signif.SetBinContent(e,0)
+    elif var=="DCApionNorm" or var=="DCAkaonNorm":                #abs greater than cut
+        zero_bin = sig.FindBin(0)
+        for e in range(zero_bin,bins+1):
+            s = sig.Integral(e,bins+1) + sig.Integral(0,2*zero_bin-e)
+            b = bkg.Integral(e,bins+1) + bkg.Integral(0,2*zero_bin-e)
+            den = math.sqrt(s+b)
+            if den!=0:
+                sign = s/den
+                signif.SetBinContent(e,sign)
+                signif.SetBinContent(2*zero_bin-e,sign)
+            else:
+                signif.SetBinContent(e,0)
+                signif.SetBinContent(2*zero_bin-e,0)
+    elif var=="CTS" or var=="DCApion" or var=="DCAkaon":                #abs less than cut
+        zero_bin = sig.FindBin(0)
+        for e in range(zero_bin,bins+1):
+            s = sig.Integral(2*zero_bin-e,e)
+            b = bkg.Integral(2*zero_bin-e,e)
+            den = math.sqrt(s+b)
+            if den!=0:
+                sign = s/den
+                signif.SetBinContent(e,sign)
+                signif.SetBinContent(2*zero_bin-e,sign)
+            else:
+                signif.SetBinContent(e,0)
+                signif.SetBinContent(2*zero_bin-e,0)
+    elif sig_mean>bkg_mean:
         for e in range(bins+1):
             s = sig.Integral(e,bins+1)
             b = bkg.Integral(e,bins+1)
@@ -192,8 +239,8 @@ def main():
                 )
                 h_bkg_px.SetYTitle("entries")
                 # create legend and entries
-                list_leg.append(TLegend(0.5, 0.8, 0.95, 0.9))
-                list_leg[i].SetNColumns(2)
+                list_leg.append(TLegend(0.3, 0.85, 0.95, 0.9))
+                list_leg[i].SetNColumns(3)
                 n_entries_sig = h_sig_px.GetEntries()
                 n_entries_bkg = h_bkg_px.GetEntries()
                 list_leg[i].AddEntry(h_sig_px, f"Sig. ({int(n_entries_sig)})", "FL")
@@ -244,7 +291,7 @@ def main():
                     scale = high_y/rightmax
                     h_significance.Scale(scale)
                 h_significance.SetLineColor(3)
-                h_significance.SetLineWidth(1)
+                h_significance.SetLineWidth(2)
                 h_significance.SetLineStyle(5)
                 h_significance.DrawCopy("hist same")
 
@@ -312,7 +359,7 @@ gStyle.SetPadLeftMargin(0.1)
 gStyle.SetPadBottomMargin(0.12)
 gStyle.SetPadRightMargin(0.05)
 gStyle.SetPadTopMargin(0.1)
-singlepad = False  # make one canvas per pT bin
+singlepad = True  # make one canvas per pT bin
 
 # legend settings
 gStyle.SetLegendFillColor(0)
@@ -320,15 +367,16 @@ gStyle.SetLegendFillColor(0)
 gStyle.SetLegendFont(textfont)
 gStyle.SetLegendTextSize(textsize)
 
-formats = ["pdf", "png", "root"]  # output file formats
-normalise = True
+# formats = ["pdf", "png", "root"]  # output file formats
+formats = ["png"]
+normalise = False
 rebin = 1
 
 path_file_sig = "../codeHF/AnalysisResults_O2.root"
 path_file_bkg = "../codeHF/AnalysisResults_O2.root"
 
-# variables = ["d0Prong0", "d0Prong1", "d0Prong2", "PtProng0", "PtProng1", "PtProng2", "CPA", "Eta", "Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon"]
-variables = ["CPA", "Pt", "Eta"]
+# variables = ["d0Prong0", "d0Prong1", "d0Prong2", "PtProng0", "PtProng1", "PtProng2", "CPA", "Eta", "Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon", "DCAkaonNorm", "DCApionNorm", "DeclengthNorm"]
+variables = ["Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon", "DCAkaonNorm", "DCApionNorm", "DeclengthNorm"]
 
 decays = ["d0"]
 
