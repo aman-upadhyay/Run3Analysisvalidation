@@ -75,14 +75,11 @@ def set_histogram(his, y_min, y_max, margin_low, margin_high, logscale):
     else:
         logscale = False
         y_range = y_max - y_min
-        if normalise:
-            his.GetYaxis().SetRangeUser(y_min - margin_low / k * y_range, y_max + margin_high / k * y_range)
-            high = y_max + margin_high / k * y_range
-        else:
-            his.GetYaxis().SetRangeUser(0, y_max*1.1+margin_high)
-            high = y_max*1.1+margin_high
+        his.GetYaxis().SetRangeUser(y_min - margin_low / k * y_range, y_max + margin_high / k * y_range)
+        high = y_max + margin_high / k * y_range
+        low = y_min - margin_low / k * y_range
         
-    return logscale, high
+    return logscale, high, low
     
 #takes 1D sig and bk histogram and returns 1D significance histogram
 def significance(sig, bkg, pT, var):
@@ -224,8 +221,8 @@ def main():
                     pad = canvas_all.cd(bin_pt)
                 # create a 1D histogram per pT bin
                 if h_sig.InheritsFrom("TH2"):
-                    h_sig_px = h_sig.ProjectionX("h_sig_px", bin_pt, bin_pt)
-                    h_bkg_px = h_bkg.ProjectionX("h_bkg_px", bin_pt, bin_pt)
+                    h_sig_px = h_sig.ProjectionX("h_sig_px{}_{}".format(var,i), bin_pt, bin_pt)
+                    h_bkg_px = h_bkg.ProjectionX("h_bkg_px{}_{}".format(var,i), bin_pt, bin_pt)
                 elif h_sig.InheritsFrom("TH1"):
                     h_sig_px = h_sig
                     h_bkg_px = h_bkg
@@ -266,7 +263,7 @@ def main():
                     h_sig_px.GetBinContent(h_sig_px.GetMaximumBin()),
                 )
                 y_min = min(h_bkg_px.GetMinimum(0), h_sig_px.GetMinimum(0))
-                logscale, high_y = set_histogram(
+                logscale, high_y, low_y = set_histogram(
                     h_bkg_px, y_min, y_max, margin_low, margin_high, False
                 )
                 if logscale:
@@ -299,7 +296,7 @@ def main():
 
                 
                 pad.Update()
-                axis.append(TGaxis(pad.GetUxmax(), pad.GetUymin(), pad.GetUxmax(), pad.GetUymax(), 0, rightmax, 510, "+L"))
+                axis.append(TGaxis(pad.GetUxmax(), pad.GetUymin(), pad.GetUxmax(), pad.GetUymax(), low_y, rightmax, 510, "+L"))
 
                 axis[i].SetLineColor(3)
                 axis[i].SetLabelColor(3)
@@ -377,7 +374,7 @@ path_file_sig = "../codeHF/AnalysisResults_O2.root"
 path_file_bkg = "../codeHF/AnalysisResults_O2.root"
 
 # variables = ["d0Prong0", "d0Prong1", "d0Prong2", "PtProng0", "PtProng1", "PtProng2", "CPA", "Eta", "Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon", "DCAkaonNorm", "DCApionNorm", "DeclengthNorm"]
-variables = ["DCApionNorm"]
+variables = ["Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon", "DCAkaonNorm", "DCApionNorm", "DeclengthNorm"]
 
 decays = ["d0"]
 
