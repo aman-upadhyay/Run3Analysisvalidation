@@ -296,7 +296,7 @@ def main():
 
                 
                 pad.Update()
-                axis.append(TGaxis(pad.GetUxmax(), pad.GetUymin(), pad.GetUxmax(), pad.GetUymax(), low_y, rightmax, 510, "+L"))
+                axis.append(TGaxis(pad.GetUxmax(), pad.GetUymin(), pad.GetUxmax(), pad.GetUymax(), low_y*rightmax/high_y, rightmax, 510, "+L"))
 
                 axis[i].SetLineColor(3)
                 axis[i].SetLabelColor(3)
