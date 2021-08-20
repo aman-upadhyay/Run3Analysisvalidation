@@ -77,11 +77,12 @@ def set_histogram(his, y_min, y_max, margin_low, margin_high, logscale):
         y_range = y_max - y_min
         if normalise:
             his.GetYaxis().SetRangeUser(y_min - margin_low / k * y_range, y_max + margin_high / k * y_range)
+            high = y_max + margin_high / k * y_range
         else:
-            his.GetYaxis().SetRangeUser(y_min, y_max*1.1+margin_high)
-        low = y_min - margin_low / k * y_range
-        high = y_max + margin_high / k * y_range
-    return logscale, low , high
+            his.GetYaxis().SetRangeUser(0, y_max*1.1+margin_high)
+            high = y_max*1.1+margin_high
+        
+    return logscale, high
     
 #takes 1D sig and bk histogram and returns 1D significance histogram
 def significance(sig, bkg, pT, var):
@@ -265,7 +266,7 @@ def main():
                     h_sig_px.GetBinContent(h_sig_px.GetMaximumBin()),
                 )
                 y_min = min(h_bkg_px.GetMinimum(0), h_sig_px.GetMinimum(0))
-                logscale, low_y, high_y = set_histogram(
+                logscale, high_y = set_histogram(
                     h_bkg_px, y_min, y_max, margin_low, margin_high, False
                 )
                 if logscale:
@@ -376,7 +377,7 @@ path_file_sig = "../codeHF/AnalysisResults_O2.root"
 path_file_bkg = "../codeHF/AnalysisResults_O2.root"
 
 # variables = ["d0Prong0", "d0Prong1", "d0Prong2", "PtProng0", "PtProng1", "PtProng2", "CPA", "Eta", "Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon", "DCAkaonNorm", "DCApionNorm", "DeclengthNorm"]
-variables = ["Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon", "DCAkaonNorm", "DCApionNorm", "DeclengthNorm"]
+variables = ["DCApionNorm"]
 
 decays = ["d0"]
 
