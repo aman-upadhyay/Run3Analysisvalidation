@@ -24,6 +24,7 @@ Contributors:
 import math
 import os
 import sys
+import numpy as np
 from math import ceil, sqrt
 
 from ROOT import TCanvas, TFile, TLegend, gROOT, gStyle, kBlue, kRed, TH1D, TGaxis
@@ -99,7 +100,7 @@ def significance(sig, bkg, pT, var):
                 signif.SetBinContent(e,sign)
             else:
                 signif.SetBinContent(e,0)
-    elif var=="mass2D" or var=="IPP":                           #less than cut
+    elif var=="IPP":                           #less than cut
         for e in range(bins+1):
             s = sig.Integral(0,e)
             b = bkg.Integral(0,e)
@@ -135,6 +136,19 @@ def significance(sig, bkg, pT, var):
             else:
                 signif.SetBinContent(e,0)
                 signif.SetBinContent(2*zero_bin-e,0)
+    elif var=="mass2D":
+        center_bin = sig.FindBin(1.86)
+        for e in range(center_bin,bins+1):
+            s = sig.Integral(2*center_bin-e,e)
+            b = bkg.Integral(2*center_bin-e,e)
+            den = math.sqrt(s+b)
+            if den!=0:
+                sign = s/den
+                signif.SetBinContent(e,sign)
+                signif.SetBinContent(2*center_bin-e,sign)
+            else:
+                signif.SetBinContent(e,0)
+                signif.SetBinContent(2*center_bin-e,0)
     elif sig_mean>bkg_mean:
         for e in range(bins+1):
             s = sig.Integral(e,bins+1)
@@ -164,6 +178,7 @@ def main():
     Main plotting function
     Loops over decays, variables and pT bins.
     """
+    
     file_sig = TFile(path_file_sig)
     if file_sig.IsZombie():
         print(f"Error: Failed to open file {path_file_sig}")
@@ -213,6 +228,7 @@ def main():
             axis = []
 
             for i in range(n_bins_pt):
+                cuts_tmp_co = np.empty(n_bins_pt)
                 bin_pt = i + 1
                 if singlepad:
                     canvas_single = create_canvas(1, f"{var}_canvas_{bin_pt}")
@@ -244,6 +260,8 @@ def main():
                 list_leg[i].AddEntry(h_sig_px, f"Sig. ({int(n_entries_sig)})", "FL")
                 list_leg[i].AddEntry(h_bkg_px, f"Bkg. ({int(n_entries_bkg)})", "FL")
                 h_significance = significance(h_sig_px, h_bkg_px, i, var)
+                Max_sig = h_significance.GetXaxis().GetBinCenter(h_significance.GetMaximumBin())
+                cuts_tmp_co[i] = Max_sig
                 n_entries_sign = h_significance.GetEntries()
                 list_leg[i].AddEntry(h_significance, f"Significance. ({int(n_entries_sign)})", "FL")
                 # normalise histograms
@@ -323,6 +341,10 @@ def main():
                         *formats,
                         dir_output=f"output_{decay}",
                     )
+            if 'cuts_tmp' in dir():
+                cuts_tmp = np.vstack((cuts_tmp,cuts_tmp_co))
+            else:
+                cuts_tmp = cuts_tmp_co
 
             if not singlepad:
                 save_canvas(
@@ -331,6 +353,10 @@ def main():
                     *formats,
                     dir_output=f"output_{decay}",
                 )
+        cuts = np.array(variables)
+        print("{} cuts".format(decay))
+        final_cuts = np.vstack((cuts,np.transpose(cuts_tmp)))
+        print(final_cuts)
 
 
 # TLatex labels of decay channels
@@ -375,6 +401,7 @@ path_file_bkg = "../codeHF/AnalysisResults_O2.root"
 
 # variables = ["d0Prong0", "d0Prong1", "d0Prong2", "PtProng0", "PtProng1", "PtProng2", "CPA", "Eta", "Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon", "DCAkaonNorm", "DCApionNorm", "DeclengthNorm"]
 variables = ["Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon", "DCAkaonNorm", "DCApionNorm", "DeclengthNorm"]
+
 
 decays = ["d0"]
 
