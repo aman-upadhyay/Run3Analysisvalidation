@@ -90,7 +90,9 @@ def significance(sig, bkg, pT, var):
     signif = TH1D("sig{}_{}".format(pT,var), "", bins, xlow, xhigh)
     sig_mean = sig.GetMean()
     bkg_mean = bkg.GetMean()
+    Max = 0
     if var=="CPA2D" or var=="CPAXY" or var=="DeclengthXY" or var=="Declength" or var=="DeclengthNorm" or var=="pionpT" or var=="kaonpT":    #greater than cut
+        Max_sig = xlow
         for e in range(bins+1):
             s = sig.Integral(e,bins+1)
             b = bkg.Integral(e,bins+1)
@@ -98,6 +100,9 @@ def significance(sig, bkg, pT, var):
             if den!=0:
                 sign = s/den
                 signif.SetBinContent(e,sign)
+                if sign>=Max:
+                    Max = sign
+                    Max_sig = signif.GetXaxis().GetBinCenter(e)
             else:
                 signif.SetBinContent(e,0)
     elif var=="IPP":                           #less than cut
@@ -110,7 +115,9 @@ def significance(sig, bkg, pT, var):
                 signif.SetBinContent(e,sign)
             else:
                 signif.SetBinContent(e,0)
+            Max_sig = signif.GetXaxis().GetBinCenter(signif.GetMaximumBin())
     elif var=="DCApionNorm" or var=="DCAkaonNorm":                #abs greater than cut
+        Max_sig = xlow
         zero_bin = sig.FindBin(0)
         for e in range(zero_bin,bins+1):
             s = sig.Integral(e,bins+1) + sig.Integral(0,2*zero_bin-e)
@@ -120,10 +127,14 @@ def significance(sig, bkg, pT, var):
                 sign = s/den
                 signif.SetBinContent(e,sign)
                 signif.SetBinContent(2*zero_bin-e,sign)
+                if sign>=Max:
+                    Max = sign
+                    Max_sig = signif.GetXaxis().GetBinCenter(e)
             else:
                 signif.SetBinContent(e,0)
                 signif.SetBinContent(2*zero_bin-e,0)
     elif var=="CTS" or var=="DCApion" or var=="DCAkaon":                #abs less than cut
+        Max_sig = xlow
         zero_bin = sig.FindBin(0)
         for e in range(zero_bin,bins+1):
             s = sig.Integral(2*zero_bin-e,e)
@@ -133,6 +144,9 @@ def significance(sig, bkg, pT, var):
                 sign = s/den
                 signif.SetBinContent(e,sign)
                 signif.SetBinContent(2*zero_bin-e,sign)
+                if sign>Max:
+                    Max = sign
+                    Max_sig = signif.GetXaxis().GetBinCenter(e)
             else:
                 signif.SetBinContent(e,0)
                 signif.SetBinContent(2*zero_bin-e,0)
@@ -149,6 +163,7 @@ def significance(sig, bkg, pT, var):
             else:
                 signif.SetBinContent(e,0)
                 signif.SetBinContent(2*center_bin-e,0)
+            Max_sig = signif.GetXaxis().GetBinCenter(signif.GetMaximumBin())
     elif sig_mean>bkg_mean:
         for e in range(bins+1):
             s = sig.Integral(e,bins+1)
@@ -159,6 +174,7 @@ def significance(sig, bkg, pT, var):
                 signif.SetBinContent(e,sign)
             else:
                 signif.SetBinContent(e,0)
+            Max_sig = signif.GetXaxis().GetBinCenter(signif.GetMaximumBin())
     else:
         for e in range(bins+1):
             s = sig.Integral(0,e)
@@ -169,8 +185,8 @@ def significance(sig, bkg, pT, var):
                 signif.SetBinContent(e,sign)
             else:
                 signif.SetBinContent(e,0)
-    return signif
-
+            Max_sig = signif.GetXaxis().GetBinCenter(signif.GetMaximumBin())
+    return signif, Max_sig
 
 
 def main():
@@ -259,8 +275,7 @@ def main():
                 n_entries_bkg = h_bkg_px.GetEntries()
                 list_leg[i].AddEntry(h_sig_px, f"Sig. ({int(n_entries_sig)})", "FL")
                 list_leg[i].AddEntry(h_bkg_px, f"Bkg. ({int(n_entries_bkg)})", "FL")
-                h_significance = significance(h_sig_px, h_bkg_px, i, var)
-                Max_sig = h_significance.GetXaxis().GetBinCenter(h_significance.GetMaximumBin())
+                h_significance, Max_sig = significance(h_sig_px, h_bkg_px, i, var)
                 cuts_tmp_co[i] = Max_sig
                 n_entries_sign = h_significance.GetEntries()
                 list_leg[i].AddEntry(h_significance, f"Significance. ({int(n_entries_sign)})", "FL")
