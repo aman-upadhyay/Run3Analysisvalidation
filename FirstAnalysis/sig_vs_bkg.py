@@ -189,6 +189,7 @@ def significance(sig, bkg, pT, var):
     return signif, Max_sig
 
 
+
 def main():
     """
     Main plotting function
@@ -276,9 +277,9 @@ def main():
                 list_leg[i].AddEntry(h_sig_px, f"Sig. ({int(n_entries_sig)})", "FL")
                 list_leg[i].AddEntry(h_bkg_px, f"Bkg. ({int(n_entries_bkg)})", "FL")
                 h_significance, Max_sig = significance(h_sig_px, h_bkg_px, i, var)
+                #print(Max_sig,i+1)
                 cuts_tmp_co[i] = Max_sig
-                n_entries_sign = h_significance.GetEntries()
-                list_leg[i].AddEntry(h_significance, f"Significance. ({int(n_entries_sign)})", "FL")
+                list_leg[i].AddEntry(h_significance, f"Significance", "FL")
                 # normalise histograms
                 if normalise:
                     if n_entries_sig > 0 and n_entries_bkg > 0:
@@ -370,8 +371,11 @@ def main():
                 )
         cuts = np.array(variables)
         print("{} cuts".format(decay))
-        final_cuts = np.vstack((cuts,np.transpose(cuts_tmp)))
+        cuts_tmp = np.transpose(cuts_tmp)
+        #np.savetxt("cuts.csv", cuts_tmp)
+        final_cuts = np.vstack((cuts,cuts_tmp))
         print(final_cuts)
+        
 
 
 # TLatex labels of decay channels
@@ -415,7 +419,7 @@ path_file_sig = "../codeHF/AnalysisResults_O2.root"
 path_file_bkg = "../codeHF/AnalysisResults_O2.root"
 
 # variables = ["d0Prong0", "d0Prong1", "d0Prong2", "PtProng0", "PtProng1", "PtProng2", "CPA", "Eta", "Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon", "DCAkaonNorm", "DCApionNorm", "DeclengthNorm"]
-variables = ["Declength", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon", "DCAkaonNorm", "DCApionNorm", "DeclengthNorm"]
+variables = ["DeclengthNorm", "CPA2D", "IPP", "CPAXY", "DeclengthXY", "CTS", "pionpT", "mass2D", "kaonpT", "DCApion", "DCAkaon", "DCAkaonNorm", "DCApionNorm", "Declength"]
 
 
 decays = ["d0"]
